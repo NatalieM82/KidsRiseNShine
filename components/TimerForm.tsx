@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Timer, ThemeColor, SoundType, THEME_BG_COLORS, PRESET_IMAGES } from '../types';
 import { Button } from './Button';
-import { ArrowLeft, Upload, Check, Music, Clock } from 'lucide-react';
+import { playSound } from '../utils/audio';
+import { ArrowLeft, Upload, Check, Music, Clock, Play } from 'lucide-react';
 
 interface TimerFormProps {
   initialData?: Timer;
@@ -171,14 +172,23 @@ export const TimerForm: React.FC<TimerFormProps> = ({ initialData, onSave, onCan
            </label>
            <div className="grid grid-cols-3 gap-3">
              {(['chimes', 'fanfare', 'success'] as SoundType[]).map((type) => (
-               <button
-                 key={type}
-                 type="button"
-                 onClick={() => setSoundType(type)}
-                 className={`py-3 rounded-xl border-4 font-bold text-sm capitalize ${soundType === type ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}
-               >
-                 {type}
-               </button>
+               <div key={type} className="flex flex-col gap-2">
+                   <button
+                     type="button"
+                     onClick={() => setSoundType(type)}
+                     className={`py-3 rounded-xl border-4 font-bold text-sm capitalize ${soundType === type ? 'bg-black text-white border-black' : 'bg-white text-gray-600 border-gray-200'}`}
+                   >
+                     {type}
+                   </button>
+                   <button 
+                        type="button"
+                        onClick={() => playSound(type)}
+                        className="self-center p-2 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-500"
+                        title="Preview sound"
+                   >
+                       <Play size={12} fill="currentColor" />
+                   </button>
+               </div>
              ))}
            </div>
         </div>

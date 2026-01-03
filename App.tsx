@@ -59,47 +59,57 @@ const App: React.FC = () => {
       </header>
 
       {/* Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {timers.map((timer) => (
           <button
             key={timer.id}
             onClick={() => setView({ type: 'ACTIVE', timer })}
-            className={`relative group p-4 rounded-[2rem] border-4 transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none text-left flex items-center gap-4 bg-white border-black shadow-cartoon overflow-hidden`}
+            className="relative group w-full aspect-square p-2 md:p-4 rounded-3xl border-4 transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none flex flex-col items-center justify-center bg-white border-black shadow-cartoon overflow-hidden"
           >
-            {/* Color accent bg */}
-            <div className={`absolute top-0 right-0 w-24 h-24 ${THEME_COLORS[timer.themeColor].split(' ')[0]} rounded-bl-[4rem] opacity-20 group-hover:opacity-40 transition-opacity`} />
+            {/* Decorative Corner */}
+            <div className={`absolute -top-8 -right-8 w-24 h-24 md:w-32 md:h-32 rounded-full opacity-10 ${THEME_COLORS[timer.themeColor].split(' ')[0]} transition-all group-hover:scale-110`} />
             
-            {/* Icon/Image Placeholder */}
-            <div className={`w-20 h-20 rounded-2xl flex-shrink-0 border-4 overflow-hidden bg-gray-50 ${THEME_COLORS[timer.themeColor].split(' ')[1]}`}>
-                <img src={timer.imageUri} alt="" className="w-full h-full object-cover opacity-80 blur-[2px] group-hover:blur-none group-hover:scale-110 transition-all duration-500" />
+            {/* Main Content Wrapper */}
+            <div className="z-10 flex flex-col items-center justify-center w-full h-full gap-2 md:gap-4 mt-2">
+                
+                {/* Image Container */}
+                <div className={`relative w-16 h-16 md:w-24 md:h-24 rounded-2xl border-2 md:border-4 overflow-hidden shadow-sm flex-shrink-0 ${THEME_COLORS[timer.themeColor].split(' ')[1]}`}>
+                    <img 
+                      src={timer.imageUri} 
+                      alt={timer.taskName} 
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                    />
+                </div>
+
+                {/* Text Info */}
+                <div className="flex flex-col items-center w-full px-1">
+                    <h3 className="text-sm md:text-lg font-black text-gray-800 leading-tight text-center w-full line-clamp-1 mb-1">
+                      {timer.taskName}
+                    </h3>
+                    <div className="inline-flex items-center justify-center bg-gray-100 rounded-full px-2 py-0.5 text-xs md:text-sm font-bold text-gray-500">
+                      <Clock size={10} className="mr-1 md:w-3 md:h-3" />
+                      <span>
+                        {Math.floor(timer.durationSec / 60)}:{String(timer.durationSec % 60).padStart(2, '0')}
+                      </span>
+                    </div>
+                </div>
             </div>
 
-            {/* Content */}
-            <div className="flex-1 z-10">
-              <h3 className="text-xl font-bold text-gray-800 leading-tight mb-1">{timer.taskName}</h3>
-              <div className="flex items-center text-gray-500 font-bold text-sm">
-                <Clock size={16} className="mr-1" />
-                {Math.floor(timer.durationSec / 60)}:{String(timer.durationSec % 60).padStart(2, '0')}
-              </div>
-            </div>
-
-            {/* Edit/Delete Actions - Visible on hover or simplified for kids? 
-                Let's make them small discrete buttons that parents can tap.
-            */}
-            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Edit/Delete Actions - Always visible on mobile but subtle, larger on hover for desktop */}
+            <div className="absolute top-2 right-2 flex gap-1 z-20 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 <div 
                     role="button"
                     onClick={(e) => handleEdit(e, timer)}
-                    className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full border-2 border-transparent hover:border-black"
+                    className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full border border-gray-200 hover:border-black shadow-sm"
                 >
-                    <Edit2 size={14} className="text-gray-600"/>
+                    <Edit2 size={12} className="text-gray-600"/>
                 </div>
                 <div 
                     role="button"
                     onClick={(e) => handleDelete(e, timer.id)}
-                    className="p-2 bg-red-100 hover:bg-red-200 rounded-full border-2 border-transparent hover:border-red-500"
+                    className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full border border-red-100 hover:border-red-500 shadow-sm"
                 >
-                    <Trash2 size={14} className="text-red-500"/>
+                    <Trash2 size={12} className="text-red-500"/>
                 </div>
             </div>
           </button>

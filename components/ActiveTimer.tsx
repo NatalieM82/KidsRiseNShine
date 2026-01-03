@@ -1,70 +1,13 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Timer, THEME_BG_COLORS } from '../types';
 import { Button } from './Button';
+import { playSound } from '../utils/audio';
 import { X, Pause, Play, RotateCcw } from 'lucide-react';
 
 interface ActiveTimerProps {
   timer: Timer;
   onExit: () => void;
 }
-
-// Simple synth sound generator to avoid external asset dependencies breaking
-const playSound = (type: string) => {
-  const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
-  if (!AudioContext) return;
-
-  const ctx = new AudioContext();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-
-  const now = ctx.currentTime;
-
-  if (type === 'fanfare') {
-    // Ta-da!
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(523.25, now); // C5
-    osc.frequency.setValueAtTime(659.25, now + 0.1); // E5
-    osc.frequency.setValueAtTime(783.99, now + 0.2); // G5
-    osc.frequency.setValueAtTime(1046.50, now + 0.4); // C6
-    gain.gain.setValueAtTime(0.5, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 1.5);
-    osc.start(now);
-    osc.stop(now + 1.5);
-  } else if (type === 'chimes') {
-    // Soft sparkle
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, now);
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + 2);
-    osc.start(now);
-    osc.stop(now + 2);
-    
-    // Echo
-    setTimeout(() => {
-        const osc2 = ctx.createOscillator();
-        const gain2 = ctx.createGain();
-        osc2.connect(gain2);
-        gain2.connect(ctx.destination);
-        osc2.frequency.setValueAtTime(1100, ctx.currentTime);
-        gain2.gain.setValueAtTime(0.2, ctx.currentTime);
-        gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 2);
-        osc2.start(ctx.currentTime);
-        osc2.stop(ctx.currentTime + 2);
-    }, 200);
-  } else {
-    // Success (Standard Beep-like but nicer)
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(440, now);
-    osc.frequency.linearRampToValueAtTime(880, now + 0.1);
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.linearRampToValueAtTime(0, now + 0.5);
-    osc.start(now);
-    osc.stop(now + 0.5);
-  }
-};
 
 // Simple particle system for confetti
 const Confetti = () => {
@@ -127,6 +70,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
   const startTimeRef = useRef<number | null>(null);
   const initialTimeRef = useRef<number>(timer.durationSec);
   const rafRef = useRef<number | null>(null);
+  const soundPlayedRef = useRef(false);
 
   const totalTime = timer.durationSec;
   const progressPercentage = ((totalTime - timeLeft) / totalTime) * 100;
@@ -144,7 +88,10 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
       if (remaining <= 0) {
           setIsCompleted(true);
           setIsActive(false);
-          playSound(timer.soundType);
+          if (!soundPlayedRef.current) {
+            playSound(timer.soundType);
+            soundPlayedRef.current = true;
+          }
       } else {
           rafRef.current = requestAnimationFrame(tick);
       }
@@ -168,6 +115,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
   const resetTimer = () => {
       setIsActive(false);
       setIsCompleted(false);
+      soundPlayedRef.current = false;
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       setTimeLeft(timer.durationSec);
       initialTimeRef.current = timer.durationSec;
@@ -203,7 +151,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
       <div className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-lg mx-auto relative">
         
         {/* The Reveal Container */}
-        <div className="relative w-full aspect-square max-w-[350px] rounded-[3rem] overflow-hidden border-8 border-black shadow-cartoon bg-gray-100">
+        <div className={`relative w-full aspect-square max-w-[350px] rounded-[3rem] overflow-hidden border-8 border-black shadow-cartoon bg-gray-100 transition-transform duration-500 ${isCompleted ? 'scale-105 rotate-2' : ''}`}>
           {/* The Hidden Image */}
           <img 
             src={timer.imageUri} 
@@ -212,15 +160,19 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
           />
           
           {/* The Curtain/Overlay */}
+          {/* Anchored to BOTTOM. As height decreases from 100% to 0%, it moves down, revealing the TOP first. */}
           <div 
-            className={`absolute inset-0 ${THEME_BG_COLORS[timer.themeColor]} transition-all duration-300 ease-linear z-10 flex items-end justify-center`}
+            className={`absolute bottom-0 left-0 right-0 ${THEME_BG_COLORS[timer.themeColor]} z-10 flex items-start justify-center overflow-hidden`}
             style={{ 
                 height: `${100 - progressPercentage}%`,
-                borderBottom: '4px solid rgba(0,0,0,0.1)' 
+                // Explicitly NO transition here to ensure it syncs perfectly with the timer loop
             }}
           >
+              {/* Decorative edge for the curtain */}
+              <div className="w-full h-3 bg-black/10 absolute top-0"></div>
+
               {/* Optional: Add a subtle pattern or icon on the curtain */}
-              <div className="mb-4 opacity-50 text-white animate-bounce">
+              <div className="mt-12 opacity-50 text-white animate-bounce">
                   {!isActive && !isCompleted && timeLeft === totalTime && (
                       <span className="font-bold text-lg">Press Play!</span>
                   )}
@@ -230,7 +182,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
           {/* Completed overlay text */}
           {isCompleted && (
               <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/10 animate-fade-in">
-                  <div className="bg-white px-6 py-3 rounded-2xl border-4 border-black shadow-cartoon transform -rotate-6">
+                  <div className="bg-white px-6 py-3 rounded-2xl border-4 border-black shadow-cartoon transform -rotate-6 animate-bounce">
                       <span className="text-3xl font-black text-kid-pink">Great Job!</span>
                   </div>
               </div>
