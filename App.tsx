@@ -1,10 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Timer, THEME_COLORS } from './types';
-import { loadInitialPresets, saveTimer, deleteTimer } from './services/storage';
+import { loadInitialPresets, saveTimer, deleteTimer, saveTimerOrder } from './services/storage';
 import { TimerForm } from './components/TimerForm';
 import { ActiveTimer } from './components/ActiveTimer';
 import { Button } from './components/Button';
-import { Plus, Trash2, Clock, Settings, Edit2 } from 'lucide-react';
+import { Plus, Trash2, Clock, Edit2, GripVertical } from 'lucide-react';
+import { 
+  DndContext, 
+  closestCenter, 
+  KeyboardSensor, 
+  MouseSensor,
+  TouchSensor,
+  useSensor, 
+  useSensors, 
+  DragEndEvent 
+} from '@dnd-kit/core';
+import { 
+  arrayMove, 
+  SortableContext, 
+  sortableKeyboardCoordinates, 
+  useSortable,
+  rectSortingStrategy,
+  verticalListSortingStrategy
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 // View State Types
 type ViewState = 
@@ -12,6 +31,106 @@ type ViewState =
   | { type: 'CREATE' }
   | { type: 'EDIT', timer: Timer }
   | { type: 'ACTIVE', timer: Timer };
+
+// Sortable Item Component
+interface SortableTimerProps {
+  timer: Timer;
+  onActivate: (timer: Timer) => void;
+  onEdit: (e: React.MouseEvent, timer: Timer) => void;
+  onDelete: (e: React.MouseEvent, id: string) => void;
+}
+
+const SortableTimerCard: React.FC<SortableTimerProps> = ({ timer, onActivate, onEdit, onDelete }) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging
+  } = useSortable({ id: timer.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style} className="w-full">
+      <div
+        onClick={() => {
+            if(!isDragging) onActivate(timer);
+        }}
+        className="relative group w-full p-2 pr-4 rounded-3xl border-4 transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none flex items-center bg-white border-black shadow-cartoon overflow-hidden cursor-pointer select-none"
+      >
+        {/* Decorative Background Shape */}
+        <div className={`absolute -right-8 -bottom-8 w-40 h-40 rounded-full opacity-10 ${THEME_COLORS[timer.themeColor].split(' ')[0]} pointer-events-none transition-transform group-hover:scale-110`} />
+        
+        {/* Drag Handle - Dedicated interactive area for dragging */}
+        <div 
+            {...attributes} 
+            {...listeners}
+            className="z-30 p-2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
+            onClick={(e) => e.stopPropagation()}
+        >
+            <GripVertical size={26} />
+        </div>
+
+        {/* Content Layout */}
+        <div className="z-10 flex items-center w-full gap-3 md:gap-4">
+            
+            {/* Image Thumbnail */}
+            <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 overflow-hidden shadow-sm flex-shrink-0 ${THEME_COLORS[timer.themeColor].split(' ')[1]}`}>
+                <img 
+                  src={timer.imageUri} 
+                  alt={timer.taskName} 
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
+                  draggable={false} 
+                />
+            </div>
+
+            {/* Text Info */}
+            <div className="flex flex-col items-start flex-grow min-w-0 py-1">
+                <h3 className="text-2xl md:text-3xl font-black text-gray-800 leading-none tracking-tight truncate w-full mb-2">
+                  {timer.taskName}
+                </h3>
+                <div className="inline-flex items-center justify-center bg-gray-100 rounded-full px-3 py-1 text-sm font-bold text-gray-500">
+                  <Clock size={14} className="mr-1.5" />
+                  <span>
+                    {Math.floor(timer.durationSec / 60)}:{String(timer.durationSec % 60).padStart(2, '0')}
+                  </span>
+                </div>
+            </div>
+
+            {/* Edit/Delete Actions */}
+            <div 
+              className="flex flex-col gap-2 ml-1 md:ml-2 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+              onPointerDown={(e) => e.stopPropagation()} 
+              onClick={(e) => e.stopPropagation()} 
+            >
+                <div 
+                    role="button"
+                    onClick={(e) => onEdit(e, timer)}
+                    className="p-2 bg-white hover:bg-gray-50 rounded-full border border-gray-200 hover:border-black shadow-sm"
+                >
+                    <Edit2 size={16} className="text-gray-600"/>
+                </div>
+                <div 
+                    role="button"
+                    onClick={(e) => onDelete(e, timer.id)}
+                    className="p-2 bg-white hover:bg-red-50 rounded-full border border-red-100 hover:border-red-500 shadow-sm"
+                >
+                    <Trash2 size={16} className="text-red-500"/>
+                </div>
+            </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 
 const App: React.FC = () => {
   const [timers, setTimers] = useState<Timer[]>([]);
@@ -41,12 +160,46 @@ const App: React.FC = () => {
       setView({ type: 'EDIT', timer });
   };
 
+  // DnD Sensors
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        // Instant drag for handle interaction
+        delay: 0, 
+        tolerance: 5, 
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (over && active.id !== over.id) {
+      setTimers((items) => {
+        const oldIndex = items.findIndex((item) => item.id === active.id);
+        const newIndex = items.findIndex((item) => item.id === over.id);
+        
+        const newOrder = arrayMove(items, oldIndex, newIndex);
+        saveTimerOrder(newOrder); 
+        return newOrder;
+      });
+    }
+  };
+
   // --------------------------------------------------------------------------
   // RENDER HELPERS
   // --------------------------------------------------------------------------
 
   const renderDashboard = () => (
-    <div className="min-h-screen p-4 pb-24 md:max-w-4xl md:mx-auto">
+    <div className="min-h-screen p-4 pb-24 md:max-w-3xl md:mx-auto">
       {/* Header */}
       <header className="flex items-center justify-between mb-8 mt-4">
         <div>
@@ -58,63 +211,29 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {timers.map((timer) => (
-          <button
-            key={timer.id}
-            onClick={() => setView({ type: 'ACTIVE', timer })}
-            className="relative group w-full aspect-square p-2 md:p-4 rounded-3xl border-4 transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none flex flex-col items-center justify-center bg-white border-black shadow-cartoon overflow-hidden"
-          >
-            {/* Decorative Corner */}
-            <div className={`absolute -top-8 -right-8 w-24 h-24 md:w-32 md:h-32 rounded-full opacity-10 ${THEME_COLORS[timer.themeColor].split(' ')[0]} transition-all group-hover:scale-110`} />
-            
-            {/* Main Content Wrapper */}
-            <div className="z-10 flex flex-col items-center justify-center w-full h-full gap-2 md:gap-4 mt-2">
-                
-                {/* Image Container */}
-                <div className={`relative w-16 h-16 md:w-24 md:h-24 rounded-2xl border-2 md:border-4 overflow-hidden shadow-sm flex-shrink-0 ${THEME_COLORS[timer.themeColor].split(' ')[1]}`}>
-                    <img 
-                      src={timer.imageUri} 
-                      alt={timer.taskName} 
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" 
-                    />
-                </div>
-
-                {/* Text Info */}
-                <div className="flex flex-col items-center w-full px-1">
-                    <h3 className="text-sm md:text-lg font-black text-gray-800 leading-tight text-center w-full line-clamp-1 mb-1">
-                      {timer.taskName}
-                    </h3>
-                    <div className="inline-flex items-center justify-center bg-gray-100 rounded-full px-2 py-0.5 text-xs md:text-sm font-bold text-gray-500">
-                      <Clock size={10} className="mr-1 md:w-3 md:h-3" />
-                      <span>
-                        {Math.floor(timer.durationSec / 60)}:{String(timer.durationSec % 60).padStart(2, '0')}
-                      </span>
-                    </div>
-                </div>
-            </div>
-
-            {/* Edit/Delete Actions - Always visible on mobile but subtle, larger on hover for desktop */}
-            <div className="absolute top-2 right-2 flex gap-1 z-20 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
-                <div 
-                    role="button"
-                    onClick={(e) => handleEdit(e, timer)}
-                    className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full border border-gray-200 hover:border-black shadow-sm"
-                >
-                    <Edit2 size={12} className="text-gray-600"/>
-                </div>
-                <div 
-                    role="button"
-                    onClick={(e) => handleDelete(e, timer.id)}
-                    className="p-1.5 bg-white/90 backdrop-blur-sm rounded-full border border-red-100 hover:border-red-500 shadow-sm"
-                >
-                    <Trash2 size={12} className="text-red-500"/>
-                </div>
-            </div>
-          </button>
-        ))}
-      </div>
+      {/* DnD List */}
+      <DndContext 
+        sensors={sensors} 
+        collisionDetection={closestCenter} 
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext 
+          items={timers.map(t => t.id)} 
+          strategy={verticalListSortingStrategy}
+        >
+          <div className="flex flex-col gap-4">
+            {timers.map((timer) => (
+              <SortableTimerCard 
+                key={timer.id} 
+                timer={timer} 
+                onActivate={(t) => setView({ type: 'ACTIVE', timer: t })}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* Empty State */}
       {timers.length === 0 && (
