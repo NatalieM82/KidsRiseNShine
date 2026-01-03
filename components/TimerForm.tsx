@@ -22,8 +22,40 @@ export const TimerForm: React.FC<TimerFormProps> = ({ initialData, onSave, onCan
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setImageUri(reader.result as string);
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const size = 320;
+          canvas.width = size;
+          canvas.height = size;
+          
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            // Calculate center crop to make it a perfect square
+            let sWidth = img.width;
+            let sHeight = img.height;
+            let sx = 0;
+            let sy = 0;
+
+            if (sWidth > sHeight) {
+                // Landscape: Crop sides
+                sx = (sWidth - sHeight) / 2;
+                sWidth = sHeight;
+            } else {
+                // Portrait: Crop top/bottom
+                sy = (sHeight - sWidth) / 2;
+                sHeight = sWidth;
+            }
+
+            // Draw to 320x320 canvas
+            ctx.drawImage(img, sx, sy, sWidth, sHeight, 0, 0, size, size);
+            
+            // Save as JPEG with 0.7 quality to reduce storage size significantly
+            setImageUri(canvas.toDataURL('image/jpeg', 0.7));
+          }
+        };
+        img.src = event.target?.result as string;
       };
       reader.readAsDataURL(file);
     }
