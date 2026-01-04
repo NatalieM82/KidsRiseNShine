@@ -1,29 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Timer, THEME_COLORS } from './types';
-import { loadInitialPresets, saveTimer, deleteTimer, saveTimerOrder } from './services/storage';
+import { loadInitialPresets, saveTimer, deleteTimer } from './services/storage';
 import { TimerForm } from './components/TimerForm';
 import { ActiveTimer } from './components/ActiveTimer';
 import { Button } from './components/Button';
-import { Plus, Trash2, Clock, Edit2, GripVertical } from 'lucide-react';
-import { 
-  DndContext, 
-  closestCenter, 
-  KeyboardSensor, 
-  MouseSensor,
-  TouchSensor,
-  useSensor, 
-  useSensors, 
-  DragEndEvent 
-} from '@dnd-kit/core';
-import { 
-  arrayMove, 
-  SortableContext, 
-  sortableKeyboardCoordinates, 
-  useSortable,
-  rectSortingStrategy,
-  verticalListSortingStrategy
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { Plus, Trash2, Clock, Edit2 } from 'lucide-react';
 
 // View State Types
 type ViewState = 
@@ -32,54 +13,26 @@ type ViewState =
   | { type: 'EDIT', timer: Timer }
   | { type: 'ACTIVE', timer: Timer };
 
-// Sortable Item Component
-interface SortableTimerProps {
+// Timer Card Component
+interface TimerCardProps {
   timer: Timer;
   onActivate: (timer: Timer) => void;
   onEdit: (e: React.MouseEvent, timer: Timer) => void;
   onDelete: (e: React.MouseEvent, id: string) => void;
 }
 
-const SortableTimerCard: React.FC<SortableTimerProps> = ({ timer, onActivate, onEdit, onDelete }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: timer.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 50 : 'auto',
-    opacity: isDragging ? 0.8 : 1,
-  };
-
+const TimerCard: React.FC<TimerCardProps> = ({ timer, onActivate, onEdit, onDelete }) => {
   return (
-    <div ref={setNodeRef} style={style} className="w-full">
+    <div className="w-full">
       <div
-        onClick={() => {
-            if(!isDragging) onActivate(timer);
-        }}
-        className="relative group w-full p-2 pr-4 rounded-3xl border-4 transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none flex items-center bg-white border-black shadow-cartoon overflow-hidden cursor-pointer select-none"
+        onClick={() => onActivate(timer)}
+        className="relative group w-full p-3 pr-4 rounded-3xl border-4 transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none flex items-center bg-white border-black shadow-cartoon overflow-hidden cursor-pointer select-none"
       >
         {/* Decorative Background Shape */}
         <div className={`absolute -right-8 -bottom-8 w-40 h-40 rounded-full opacity-10 ${THEME_COLORS[timer.themeColor].split(' ')[0]} pointer-events-none transition-transform group-hover:scale-110`} />
         
-        {/* Drag Handle - Dedicated interactive area for dragging */}
-        <div 
-            {...attributes} 
-            {...listeners}
-            className="z-30 p-2 text-gray-300 hover:text-gray-500 cursor-grab active:cursor-grabbing touch-none flex-shrink-0"
-            onClick={(e) => e.stopPropagation()}
-        >
-            <GripVertical size={26} />
-        </div>
-
         {/* Content Layout */}
-        <div className="z-10 flex items-center w-full gap-3 md:gap-4">
+        <div className="z-10 flex items-center w-full gap-4">
             
             {/* Image Thumbnail */}
             <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 overflow-hidden shadow-sm flex-shrink-0 ${THEME_COLORS[timer.themeColor].split(' ')[1]}`}>
@@ -106,8 +59,7 @@ const SortableTimerCard: React.FC<SortableTimerProps> = ({ timer, onActivate, on
 
             {/* Edit/Delete Actions */}
             <div 
-              className="flex flex-col gap-2 ml-1 md:ml-2 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
-              onPointerDown={(e) => e.stopPropagation()} 
+              className="flex flex-col gap-2 ml-2 z-20 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
               onClick={(e) => e.stopPropagation()} 
             >
                 <div 
@@ -160,40 +112,6 @@ const App: React.FC = () => {
       setView({ type: 'EDIT', timer });
   };
 
-  // DnD Sensors
-  const sensors = useSensors(
-    useSensor(MouseSensor, {
-      activationConstraint: {
-        distance: 5,
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        // Instant drag for handle interaction
-        delay: 0, 
-        tolerance: 5, 
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setTimers((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-        
-        const newOrder = arrayMove(items, oldIndex, newIndex);
-        saveTimerOrder(newOrder); 
-        return newOrder;
-      });
-    }
-  };
-
   // --------------------------------------------------------------------------
   // RENDER HELPERS
   // --------------------------------------------------------------------------
@@ -211,29 +129,18 @@ const App: React.FC = () => {
         </div>
       </header>
 
-      {/* DnD List */}
-      <DndContext 
-        sensors={sensors} 
-        collisionDetection={closestCenter} 
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext 
-          items={timers.map(t => t.id)} 
-          strategy={verticalListSortingStrategy}
-        >
-          <div className="flex flex-col gap-4">
-            {timers.map((timer) => (
-              <SortableTimerCard 
-                key={timer.id} 
-                timer={timer} 
-                onActivate={(t) => setView({ type: 'ACTIVE', timer: t })}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
+      {/* Timer List */}
+      <div className="flex flex-col gap-4">
+        {timers.map((timer) => (
+          <TimerCard 
+            key={timer.id} 
+            timer={timer} 
+            onActivate={(t) => setView({ type: 'ACTIVE', timer: t })}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+          />
+        ))}
+      </div>
 
       {/* Empty State */}
       {timers.length === 0 && (

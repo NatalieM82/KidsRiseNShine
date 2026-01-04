@@ -24,11 +24,6 @@ export const saveTimer = (timer: Timer) => {
   return timers;
 };
 
-export const saveTimerOrder = (timers: Timer[]) => {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
-  return timers;
-};
-
 export const deleteTimer = (id: string) => {
   const timers = getTimers().filter(t => t.id !== id);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
