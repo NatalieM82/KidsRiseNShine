@@ -7,6 +7,7 @@ import { X, Pause, Play, RotateCcw } from 'lucide-react';
 interface ActiveTimerProps {
   timer: Timer;
   onExit: () => void;
+  onComplete?: (timer: Timer) => void;
 }
 
 // Simple particle system for confetti
@@ -62,7 +63,7 @@ const Confetti = () => {
 };
 
 
-export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
+export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onComplete }) => {
   const [timeLeft, setTimeLeft] = useState(timer.durationSec);
   const [isActive, setIsActive] = useState(false); // Start paused so user gets ready
   const [isCompleted, setIsCompleted] = useState(false);
@@ -91,11 +92,14 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit }) => {
           if (!soundPlayedRef.current) {
             playSound(timer.soundType);
             soundPlayedRef.current = true;
+            if (onComplete) {
+                onComplete(timer);
+            }
           }
       } else {
           rafRef.current = requestAnimationFrame(tick);
       }
-  }, [timer.soundType]);
+  }, [timer, onComplete]);
 
   const toggleTimer = () => {
       if (isActive) {

@@ -5,6 +5,7 @@ export interface Timer {
   imageUri: string;
   themeColor: ThemeColor;
   soundType: SoundType;
+  lastCompleted?: number;
 }
 
 export type ThemeColor = 'blue' | 'pink' | 'yellow' | 'purple' | 'green' | 'orange';
