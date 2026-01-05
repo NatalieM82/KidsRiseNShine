@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Timer, THEME_BG_COLORS } from '../types';
 import { Button } from './Button';
 import { playSound } from '../utils/audio';
-import { X, Pause, Play, RotateCcw } from 'lucide-react';
+import { X, Pause, Play, RotateCcw, Check } from 'lucide-react';
 
 interface ActiveTimerProps {
   timer: Timer;
@@ -87,19 +87,30 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
       setTimeLeft(remaining);
 
       if (remaining <= 0) {
-          setIsCompleted(true);
-          setIsActive(false);
-          if (!soundPlayedRef.current) {
-            playSound(timer.soundType);
-            soundPlayedRef.current = true;
-            if (onComplete) {
-                onComplete(timer);
-            }
-          }
+          finishTimer();
       } else {
           rafRef.current = requestAnimationFrame(tick);
       }
-  }, [timer, onComplete]);
+  }, [timer]); // Removed onComplete from dependency to avoid stale closure issues if not needed, handled in finishTimer
+
+  const finishTimer = () => {
+      setIsCompleted(true);
+      setIsActive(false);
+      setTimeLeft(0);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      
+      if (!soundPlayedRef.current) {
+        playSound(timer.soundType);
+        soundPlayedRef.current = true;
+        if (onComplete) {
+            onComplete(timer);
+        }
+      }
+  };
+
+  const handleEarlyComplete = () => {
+      finishTimer();
+  };
 
   const toggleTimer = () => {
       if (isActive) {
@@ -209,6 +220,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
                         onClick={resetTimer}
                         disabled={timeLeft === totalTime}
                         className="rounded-full !p-4"
+                        title="Reset Timer"
                     >
                         <RotateCcw size={24} />
                     </Button>
@@ -218,6 +230,15 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
                         className={`rounded-full !p-6 w-24 h-24 flex items-center justify-center transition-all ${isActive ? 'bg-kid-orange border-kid-orange text-white' : 'bg-green-500 border-green-600'}`}
                     >
                         {isActive ? <Pause size={40} fill="currentColor" /> : <Play size={40} fill="currentColor" className="ml-1" />}
+                    </Button>
+
+                    <Button 
+                        variant="secondary" 
+                        onClick={handleEarlyComplete}
+                        className="rounded-full !p-4 bg-green-50 border-green-200 hover:border-green-600 hover:bg-green-100"
+                        title="I'm done!"
+                    >
+                        <Check size={24} className="text-green-600" />
                     </Button>
                  </>
              ) : (

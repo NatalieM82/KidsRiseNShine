@@ -115,11 +115,22 @@ const TimerCard: React.FC<TimerCardProps> = ({ timer, onActivate, onEdit, onDele
 const App: React.FC = () => {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [view, setView] = useState<ViewState>({ type: 'DASHBOARD' });
+  const [currentDate, setCurrentDate] = useState(new Date());
 
   // Load data on mount
   useEffect(() => {
     setTimers(loadInitialPresets());
-  }, []);
+
+    // Check every minute if the day has changed to reset statuses
+    const interval = setInterval(() => {
+        const now = new Date();
+        if (now.getDate() !== currentDate.getDate()) {
+            setCurrentDate(now);
+        }
+    }, 60000);
+
+    return () => clearInterval(interval);
+  }, [currentDate]);
 
   const handleSave = (timer: Timer) => {
     const updated = saveTimer(timer);
@@ -152,7 +163,9 @@ const App: React.FC = () => {
   // --------------------------------------------------------------------------
 
   const renderDashboard = () => {
-    // Sort timers: Uncompleted first, then completed
+    // Sort timers: Uncompleted first, then completed. 
+    // This uses new Date() internally via isCompletedToday, but checking against currentDate 
+    // implicitly ensures we re-render when currentDate state updates.
     const sortedTimers = [...timers].sort((a, b) => {
         const aCompleted = isCompletedToday(a);
         const bCompleted = isCompletedToday(b);
