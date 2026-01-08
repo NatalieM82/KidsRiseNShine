@@ -1,4 +1,4 @@
-name: NodeJS with Webpack
+name: Build dist
 
 on:
   push:
@@ -29,7 +29,5 @@ jobs:
   
     - name: Commit and Push Build Folder
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git add -f dist/
         git diff --quiet && git diff --staged --quiet || (git commit -m "chore: update build artifacts [skip ci]" && git push)
