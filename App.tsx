@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, THEME_COLORS } from './types';
-import { loadInitialPresets, saveTimer, deleteTimer } from './services/storage';
+import { Timer, AppSettings, THEME_COLORS } from './types';
+import { loadInitialPresets, saveTimer, deleteTimer, getSettings, saveSettings } from './services/storage';
 import { TimerForm } from './components/TimerForm';
 import { ActiveTimer } from './components/ActiveTimer';
 import { Button } from './components/Button';
-import { Plus, Trash2, Clock, Edit2, Check } from 'lucide-react';
+import { RaceToBus } from './components/RaceToBus';
+import { SettingsModal } from './components/SettingsModal';
+import { Plus, Trash2, Clock, Edit2, Check, Settings as SettingsIcon } from 'lucide-react';
 
 // View State Types
 type ViewState = 
@@ -116,10 +118,18 @@ const App: React.FC = () => {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [view, setView] = useState<ViewState>({ type: 'DASHBOARD' });
   const [currentDate, setCurrentDate] = useState(new Date());
+  
+  // Settings State
+  const [appSettings, setAppSettings] = useState<AppSettings>(getSettings());
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // Simulation State (Lifted from RaceToBus)
+  const [simulation, setSimulation] = useState({ isActive: false, offset: 0 });
 
   // Load data on mount
   useEffect(() => {
     setTimers(loadInitialPresets());
+    setAppSettings(getSettings());
 
     // Check every minute if the day has changed to reset statuses
     const interval = setInterval(() => {
@@ -131,6 +141,38 @@ const App: React.FC = () => {
 
     return () => clearInterval(interval);
   }, [currentDate]);
+
+  // Derived state: Convert HH:mm settings + today's date into ISO strings for RaceToBus
+  const getJourneyTimes = () => {
+    const today = new Date();
+    
+    // Parse start time
+    const [startH, startM] = appSettings.morningStart.split(':').map(Number);
+    const startDate = new Date(today);
+    startDate.setHours(startH, startM, 0, 0);
+
+    // Parse departure time
+    const [endH, endM] = appSettings.departureTime.split(':').map(Number);
+    const endDate = new Date(today);
+    endDate.setHours(endH, endM, 0, 0);
+
+    // Apply buffer to create the "Effective Departure" (Goal Line)
+    const effectiveEndDate = new Date(endDate.getTime() - appSettings.bufferMinutes * 60000);
+
+    return {
+        start: startDate.toISOString(),
+        end: effectiveEndDate.toISOString()
+    };
+  };
+
+  const journeyTimes = getJourneyTimes();
+
+
+  // Handlers
+  const handleSaveSettings = (newSettings: AppSettings) => {
+      const saved = saveSettings(newSettings);
+      setAppSettings(saved);
+  };
 
   const handleSave = (timer: Timer) => {
     const updated = saveTimer(timer);
@@ -164,8 +206,6 @@ const App: React.FC = () => {
 
   const renderDashboard = () => {
     // Sort timers: Uncompleted first, then completed. 
-    // This uses new Date() internally via isCompletedToday, but checking against currentDate 
-    // implicitly ensures we re-render when currentDate state updates.
     const sortedTimers = [...timers].sort((a, b) => {
         const aCompleted = isCompletedToday(a);
         const bCompleted = isCompletedToday(b);
@@ -174,18 +214,61 @@ const App: React.FC = () => {
         return aCompleted ? 1 : -1;
     });
 
+    // Calculate remaining task time for the bus logic
+    const totalRemainingSeconds = timers
+        .filter(t => !isCompletedToday(t))
+        .reduce((sum, t) => sum + t.durationSec, 0);
+    
+    // Calculate TOTAL duration for Settings Modal Budget
+    const totalDurationAllTasks = timers.reduce((sum, t) => sum + t.durationSec, 0);
+
     return (
         <div className="min-h-screen p-4 pb-24 md:max-w-3xl md:mx-auto">
+        
+        {/* Settings Modal */}
+        <SettingsModal 
+            isOpen={isSettingsOpen}
+            currentSettings={appSettings}
+            totalTaskSeconds={totalDurationAllTasks}
+            onSave={handleSaveSettings}
+            onClose={() => setIsSettingsOpen(false)}
+            simulation={simulation}
+            onSimulationChange={setSimulation}
+        />
+
         {/* Header */}
         <header className="flex items-center justify-between mb-8 mt-4">
             <div>
             <h1 className="text-3xl font-black text-gray-800 tracking-tight">Rise & Shine</h1>
             <p className="text-gray-500 font-bold">Good morning, Superstar!</p>
             </div>
-            <div className="w-12 h-12 bg-yellow-300 rounded-full border-4 border-black flex items-center justify-center shadow-cartoon">
-            <span className="text-2xl">☀️</span>
+            
+            <div className="flex gap-3">
+                 {/* Settings Button */}
+                <Button 
+                    variant="secondary" 
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="rounded-full !p-3 w-12 h-12 flex items-center justify-center bg-white"
+                    title="Parent Settings"
+                >
+                    <SettingsIcon size={24} className="text-gray-800" />
+                </Button>
+
+                {/* Sun Icon */}
+                <div className="w-12 h-12 bg-yellow-300 rounded-full border-4 border-black flex items-center justify-center shadow-cartoon">
+                    <span className="text-2xl">☀️</span>
+                </div>
             </div>
         </header>
+
+        {/* Journey Progress */}
+        <RaceToBus 
+            startTime={journeyTimes.start}
+            departureTime={journeyTimes.end}
+            totalTaskSecondsRemaining={totalRemainingSeconds}
+            isSimulating={simulation.isActive}
+            simulatedOffsetMinutes={simulation.offset}
+        />
 
         {/* Timer List */}
         <div className="flex flex-col gap-4">

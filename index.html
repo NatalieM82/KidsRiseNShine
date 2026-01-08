@@ -28,6 +28,21 @@
               'cartoon': '4px 4px 0px 0px rgba(0,0,0,0.2)',
               'cartoon-hover': '2px 2px 0px 0px rgba(0,0,0,0.2)',
               'cartoon-active': '0px 0px 0px 0px rgba(0,0,0,0.2)',
+            },
+            keyframes: {
+              shake: {
+                '0%, 100%': { transform: 'translateX(0)' },
+                '25%': { transform: 'translateX(-2px) rotate(-5deg)' },
+                '75%': { transform: 'translateX(2px) rotate(5deg)' },
+              },
+              'bounce-horizontal': {
+                 '0%, 100%': { transform: 'translateY(0)' },
+                 '50%': { transform: 'translateY(-2px)' },
+              }
+            },
+            animation: {
+              shake: 'shake 0.3s ease-in-out infinite',
+              'bounce-slight': 'bounce-horizontal 1s infinite'
             }
           }
         }

@@ -11,6 +11,12 @@ export interface Timer {
 export type ThemeColor = 'blue' | 'pink' | 'yellow' | 'purple' | 'green' | 'orange';
 export type SoundType = 'chimes' | 'fanfare' | 'success';
 
+export interface AppSettings {
+  morningStart: string; // HH:mm
+  departureTime: string; // HH:mm
+  bufferMinutes: number;
+}
+
 export const THEME_COLORS: Record<ThemeColor, string> = {
   blue: 'bg-kid-blue border-kid-blue',
   pink: 'bg-kid-pink border-kid-pink',

@@ -1,10 +1,13 @@
-import { Timer } from '../types';
+import { Timer, AppSettings } from '../types';
 
-const STORAGE_KEY = 'rise_and_shine_timers';
+const TIMER_STORAGE_KEY = 'rise_and_shine_timers';
+const SETTINGS_STORAGE_KEY = 'rise_and_shine_settings';
+
+// --- Timers ---
 
 export const getTimers = (): Timer[] => {
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(TIMER_STORAGE_KEY);
     return data ? JSON.parse(data) : [];
   } catch (e) {
     console.error("Failed to load timers", e);
@@ -20,17 +23,40 @@ export const saveTimer = (timer: Timer) => {
   } else {
     timers.push(timer);
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
+  localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timers));
   return timers;
 };
 
 export const deleteTimer = (id: string) => {
   const timers = getTimers().filter(t => t.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(timers));
+  localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timers));
   return timers;
 };
 
-// Initial preset loader
+// --- Settings ---
+
+const DEFAULT_SETTINGS: AppSettings = {
+  morningStart: '07:00',
+  departureTime: '08:00',
+  bufferMinutes: 5
+};
+
+export const getSettings = (): AppSettings => {
+  try {
+    const data = localStorage.getItem(SETTINGS_STORAGE_KEY);
+    return data ? JSON.parse(data) : DEFAULT_SETTINGS;
+  } catch (e) {
+    return DEFAULT_SETTINGS;
+  }
+};
+
+export const saveSettings = (settings: AppSettings): AppSettings => {
+  localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  return settings;
+};
+
+// --- Presets ---
+
 export const loadInitialPresets = (): Timer[] => {
     const current = getTimers();
     if (current.length > 0) return current;
@@ -61,6 +87,6 @@ export const loadInitialPresets = (): Timer[] => {
             soundType: 'chimes'
         }
     ];
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(presets));
+    localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(presets));
     return presets;
 }
