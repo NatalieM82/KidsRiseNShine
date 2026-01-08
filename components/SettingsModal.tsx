@@ -240,16 +240,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="space-y-2 animate-fade-in">
                             <input 
                                 type="range" 
-                                min="-720" 
-                                max="720" 
+                                min="-360" 
+                                max="360" 
                                 value={simulation.offset}
                                 onChange={(e) => onSimulationChange({ ...simulation, offset: parseInt(e.target.value) })}
                                 className="w-full accent-black h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                             />
                             <div className="flex justify-between text-[10px] font-bold text-gray-400">
-                                <span>-12 hours</span>
+                                <span>-6 hours</span>
                                 <span className="text-gray-600">{simulation.offset > 0 ? '+' : ''}{simulation.offset} min</span>
-                                <span>+12 hours</span>
+                                <span>+6 hours</span>
                             </div>
                         </div>
                     )}

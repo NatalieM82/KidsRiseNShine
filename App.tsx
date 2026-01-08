@@ -173,11 +173,11 @@ const App: React.FC = () => {
   };
 
   const handleResetAllProgress = () => {
-      // if (window.confirm("Are you sure you want to reset today's progress for all tasks?")) {
+      if (window.confirm("Are you sure you want to reset today's progress for all tasks?")) {
           const updated = resetAllTimersStatus();
           setTimers([...updated]);
           setIsSettingsOpen(false); // Close modal for visual confirmation
-      // }
+      }
   };
 
   const handleSave = (timer: Timer) => {
