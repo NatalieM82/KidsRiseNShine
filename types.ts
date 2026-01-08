@@ -37,7 +37,6 @@ export const THEME_BG_COLORS: Record<ThemeColor, string> = {
 
 export const PRESET_IMAGES = [
   { name: 'Pancakes', uri: 'https://images.unsplash.com/photo-1506084868230-bb9d95c24759?auto=format&fit=crop&w=600&q=80' },
-  { name: 'Toothbrush', uri: 'https://images.unsplash.com/photo-1559676169-234b677a2846?auto=format&fit=crop&w=600&q=80' },
   { name: 'School Bus', uri: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=600&q=80' },
   { name: 'Sneakers', uri: 'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=600&q=80' },
   { name: 'Books', uri: 'https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=600&q=80' },
