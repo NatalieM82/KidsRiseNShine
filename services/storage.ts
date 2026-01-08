@@ -24,13 +24,22 @@ export const saveTimer = (timer: Timer) => {
     timers.push(timer);
   }
   localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timers));
-  return timers;
+  return [...timers];
 };
 
 export const deleteTimer = (id: string) => {
   const timers = getTimers().filter(t => t.id !== id);
   localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timers));
-  return timers;
+  return [...timers];
+};
+
+export const resetAllTimersStatus = () => {
+  const timers = getTimers().map(timer => {
+    const { lastCompleted, ...rest } = timer;
+    return rest;
+  });
+  localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(timers));
+  return [...timers];
 };
 
 // --- Settings ---

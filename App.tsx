@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Timer, AppSettings, THEME_COLORS } from './types';
-import { loadInitialPresets, saveTimer, deleteTimer, getSettings, saveSettings } from './services/storage';
+import { loadInitialPresets, saveTimer, deleteTimer, getSettings, saveSettings, resetAllTimersStatus } from './services/storage';
 import { TimerForm } from './components/TimerForm';
 import { ActiveTimer } from './components/ActiveTimer';
 import { Button } from './components/Button';
@@ -20,9 +20,7 @@ const isCompletedToday = (timer: Timer) => {
     if (!timer.lastCompleted) return false;
     const date = new Date(timer.lastCompleted);
     const today = new Date();
-    return date.getDate() === today.getDate() &&
-           date.getMonth() === today.getMonth() &&
-           date.getFullYear() === today.getFullYear();
+    return date.toDateString() === today.toDateString();
 };
 
 // Timer Card Component
@@ -134,7 +132,7 @@ const App: React.FC = () => {
     // Check every minute if the day has changed to reset statuses
     const interval = setInterval(() => {
         const now = new Date();
-        if (now.getDate() !== currentDate.getDate()) {
+        if (now.toDateString() !== currentDate.toDateString()) {
             setCurrentDate(now);
         }
     }, 60000);
@@ -172,6 +170,14 @@ const App: React.FC = () => {
   const handleSaveSettings = (newSettings: AppSettings) => {
       const saved = saveSettings(newSettings);
       setAppSettings(saved);
+  };
+
+  const handleResetAllProgress = () => {
+      // if (window.confirm("Are you sure you want to reset today's progress for all tasks?")) {
+          const updated = resetAllTimersStatus();
+          setTimers([...updated]);
+          setIsSettingsOpen(false); // Close modal for visual confirmation
+      // }
   };
 
   const handleSave = (timer: Timer) => {
@@ -234,6 +240,7 @@ const App: React.FC = () => {
             onClose={() => setIsSettingsOpen(false)}
             simulation={simulation}
             onSimulationChange={setSimulation}
+            onResetAllProgress={handleResetAllProgress}
         />
 
         {/* Header */}

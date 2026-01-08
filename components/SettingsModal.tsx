@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings } from '../types';
 import { Button } from './Button';
-import { X, Clock, ShieldAlert, CheckCircle2, RotateCcw } from 'lucide-react';
+import { X, Clock, ShieldAlert, CheckCircle2, RotateCcw, Trash2 } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -11,6 +11,7 @@ interface SettingsModalProps {
   onClose: () => void;
   simulation: { isActive: boolean; offset: number };
   onSimulationChange: (sim: { isActive: boolean; offset: number }) => void;
+  onResetAllProgress: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -20,7 +21,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSave, 
   onClose,
   simulation,
-  onSimulationChange
+  onSimulationChange,
+  onResetAllProgress
 }) => {
   const [settings, setSettings] = useState<AppSettings>(currentSettings);
 
@@ -188,6 +190,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </div>
                 )}
             </form>
+
+            {/* Quick Actions */}
+            <div className="mt-8 pt-6 border-t border-gray-200 space-y-4">
+                <span className="font-black text-gray-800 block">Quick Actions</span>
+                <Button 
+                    type="button"
+                    variant="secondary" 
+                    fullWidth 
+                    className="!bg-red-50 !border-red-200 !text-red-600 hover:!bg-red-100"
+                    onClick={onResetAllProgress}
+                >
+                    <RotateCcw size={18} />
+                    Reset Daily Progress
+                </Button>
+            </div>
 
             {/* Simulation Controls Section (Direct Control, no Save needed) */}
              <div className="mt-8 pt-6 border-t border-gray-200">
