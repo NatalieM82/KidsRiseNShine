@@ -193,11 +193,9 @@ const App: React.FC = () => {
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if(window.confirm("Are you sure you want to remove this task?")) {
+    e.stopPropagation(); 
         const updated = deleteTimer(id);
         setTimers(updated);
-    }
   };
 
   const handleEdit = (e: React.MouseEvent, timer: Timer) => {
