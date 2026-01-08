@@ -30,7 +30,7 @@ jobs:
     - name: Build
       run: |
         npm install
-        npm run build
+        vite build --base=/KidsRiseNShine
         
     - name: Upload static files as artifact
       uses: actions/upload-pages-artifact@v3
