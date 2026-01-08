@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AppSettings } from '../types';
 import { Button } from './Button';
-import { X, Clock, ShieldAlert, CheckCircle2, RotateCcw, Trash2 } from 'lucide-react';
+import { X, Clock, ShieldAlert, RotateCcw } from 'lucide-react';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -72,11 +72,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     onClose();
   };
 
-  // Helper for current simulated time display
-  const getSimulatedTimeDisplay = () => {
+  // --- Simulation Time Helpers ---
+
+  // Get current calculated simulation time as HH:mm string for input
+  const getSimTimeInputValue = () => {
     const now = new Date();
     const simTime = new Date(now.getTime() + simulation.offset * 60000);
-    return simTime.toLocaleTimeString([], { hour: '2-digit', minute:'2-digit'});
+    const h = simTime.getHours().toString().padStart(2, '0');
+    const m = simTime.getMinutes().toString().padStart(2, '0');
+    return `${h}:${m}`;
+  };
+
+  // Handle direct time input change
+  const handleSimTimeInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+     const [h, m] = e.target.value.split(':').map(Number);
+     const now = new Date();
+     const target = new Date(now);
+     target.setHours(h, m, 0, 0);
+     
+     // Calculate difference in minutes from NOW to TARGET
+     // This allows setting the time to "08:00" regardless of what time it actually is
+     const diffMs = target.getTime() - now.getTime();
+     const diffMins = Math.round(diffMs / 60000);
+     
+     onSimulationChange({ ...simulation, offset: diffMins });
   };
 
   return (
@@ -206,7 +225,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </Button>
             </div>
 
-            {/* Simulation Controls Section (Direct Control, no Save needed) */}
+            {/* Simulation Controls Section */}
              <div className="mt-8 pt-6 border-t border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                     <span className="font-black text-gray-800">Time Travel Simulation</span>
@@ -219,36 +238,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                 </div>
                 
-                <div className="p-4 bg-gray-50 rounded-xl border-2 border-gray-200 space-y-4">
-                    <div className="flex justify-between items-center">
-                        <label className="flex items-center gap-2 cursor-pointer">
+                <div className={`p-4 rounded-xl border-2 transition-colors space-y-4 ${simulation.isActive ? 'bg-blue-50 border-blue-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex justify-between items-center gap-4">
+                        <label className="flex items-center gap-2 cursor-pointer flex-shrink-0">
                             <input 
                                 type="checkbox" 
                                 checked={simulation.isActive}
                                 onChange={(e) => onSimulationChange({ ...simulation, isActive: e.target.checked })}
                                 className="w-5 h-5 rounded text-black focus:ring-black border-gray-300"
                             />
-                            <span className="font-bold text-gray-700">Enable Override</span>
+                            <span className="font-bold text-gray-700">Override Time</span>
                         </label>
-                        <div className="text-right">
-                             <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">Simulated Time</div>
-                             <div className="font-mono font-bold text-lg text-blue-600">{getSimulatedTimeDisplay()}</div>
+                        
+                        {/* Editable Clock Input */}
+                        <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all ${simulation.isActive ? 'bg-white border-blue-300 shadow-sm opacity-100' : 'bg-gray-100 border-gray-200 opacity-50'}`}>
+                             <Clock size={20} className={simulation.isActive ? 'text-blue-500' : 'text-gray-400'} />
+                             <input 
+                                type="time"
+                                disabled={!simulation.isActive}
+                                value={getSimTimeInputValue()}
+                                onChange={handleSimTimeInput}
+                                className="bg-transparent font-bold text-lg text-gray-800 focus:outline-none w-[90px]"
+                             />
                         </div>
                     </div>
 
                     {simulation.isActive && (
-                        <div className="space-y-2 animate-fade-in">
+                        <div className="space-y-2 animate-fade-in pt-2">
                             <input 
                                 type="range" 
                                 min="-720" 
                                 max="720" 
                                 value={simulation.offset}
                                 onChange={(e) => onSimulationChange({ ...simulation, offset: parseInt(e.target.value) })}
-                                className="w-full accent-black h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                className="w-full accent-blue-500 h-2 bg-blue-200 rounded-lg appearance-none cursor-pointer"
                             />
-                            <div className="flex justify-between text-[10px] font-bold text-gray-400">
+                            <div className="flex justify-between text-[10px] font-bold text-blue-400">
                                 <span>-12 hours</span>
-                                <span className="text-gray-600">{simulation.offset > 0 ? '+' : ''}{simulation.offset} min</span>
+                                <span className="text-blue-600">{simulation.offset > 0 ? '+' : ''}{simulation.offset} min offset</span>
                                 <span>+12 hours</span>
                             </div>
                         </div>
