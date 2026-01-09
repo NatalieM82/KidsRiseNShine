@@ -86,10 +86,10 @@ Distributed under the MIT License. See `LICENSE` for more information.
 
 ## ✉️ Contact
 
-**Natalie M.** - [GitHub Profile](https://www.google.com/search?q=https://github.com/NatalieM82)
-
-Project Link: [https://github.com/NatalieM82/KidsRiseNShine](https://github.com/NatalieM82/KidsRiseNShine)
-
+**Natalie M.** - [GitHub Profile](https://github.com/NatalieM82)
+ - [LinkedIn Profile](https://www.linkedin.com/in/nataliemenahem/)
+ - [Project Demo](https://nataliem82.github.io/KidsRiseNShine/)
+   
 ---
 
 *Developed with ❤️ to make mornings a little brighter.*
