@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.VITE_GOOGLE_ANALYTICS_ID': env.VITE_GOOGLE_ANALYTICS_ID,
+        'process.env.VITE_GOOGLE_ANALYTICS_ID': JSON.stringify(env.VITE_GOOGLE_ANALYTICS_ID),
       },
       resolve: {
         alias: {
