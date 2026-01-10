@@ -72,14 +72,6 @@ export const loadInitialPresets = (): Timer[] => {
 
     const presets: Timer[] = [
         {
-            id: 'preset-1',
-            taskName: 'Brush Teeth',
-            durationSec: 120,
-            imageUri: 'https://images.unsplash.com/photo-1559676169-234b677a2846?auto=format&fit=crop&w=600&q=80',
-            themeColor: 'blue',
-            soundType: 'success'
-        },
-        {
             id: 'preset-2',
             taskName: 'Get Dressed',
             durationSec: 300,
