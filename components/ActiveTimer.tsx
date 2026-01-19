@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Timer, THEME_BG_COLORS } from '../types';
 import { Button } from './Button';
-import { playSound } from '../utils/audio';
+import { playSound, playTick } from '../utils/audio';
 import { RaceToBus } from './RaceToBus';
 import { X, Pause, Play, RotateCcw, Check } from 'lucide-react';
 
@@ -86,9 +86,13 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
   const initialTimeRef = useRef<number>(timer.durationSec);
   const rafRef = useRef<number | null>(null);
   const soundPlayedRef = useRef(false);
+  const lastTickSecondRef = useRef<number>(-1);
 
   const totalTime = timer.durationSec;
   const progressPercentage = ((totalTime - timeLeft) / totalTime) * 100;
+  
+  // Urgent if less than 30 seconds
+  const isUrgent = timeLeft <= 30 && timeLeft > 0;
 
   // Animation Loop using requestAnimationFrame for smoothness and Date.now for accuracy
   const tick = useCallback(() => {
@@ -97,8 +101,15 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
       const now = Date.now();
       const elapsed = (now - startTimeRef.current) / 1000;
       const remaining = Math.max(0, initialTimeRef.current - elapsed);
+      const currentSecond = Math.ceil(remaining);
       
       setTimeLeft(remaining);
+
+      // Handle Ticking Sound
+      if (currentSecond <= 30 && currentSecond > 0 && currentSecond !== lastTickSecondRef.current) {
+          playTick();
+          lastTickSecondRef.current = currentSecond;
+      }
 
       if (remaining <= 0) {
           finishTimer();
@@ -137,6 +148,8 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
           // Start/Resume
           setIsActive(true);
           startTimeRef.current = Date.now();
+          // Reset tick ref to avoid double tick or missed tick if paused exactly on second edge
+          lastTickSecondRef.current = Math.ceil(timeLeft);
           rafRef.current = requestAnimationFrame(tick);
       }
   };
@@ -148,6 +161,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
       setTimeLeft(timer.durationSec);
       initialTimeRef.current = timer.durationSec;
+      lastTickSecondRef.current = -1;
   };
 
   useEffect(() => {
@@ -167,12 +181,12 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
   const currentTotalRemaining = otherTasksDurationSec + timeLeft;
 
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto">
+    <div className={`fixed inset-0 z-50 flex flex-col overflow-y-auto transition-colors duration-1000 ${isUrgent ? 'bg-red-50' : 'bg-white'}`}>
       {isCompleted && <Confetti />}
 
       {/* Header */}
-      <div className="p-4 flex justify-between items-center z-10 bg-white/80 backdrop-blur-md sticky top-0">
-        <Button variant="ghost" onClick={onExit} className="rounded-full !p-3 bg-gray-100">
+      <div className={`p-4 flex justify-between items-center z-10 sticky top-0 backdrop-blur-md transition-colors ${isUrgent ? 'bg-red-50/80' : 'bg-white/80'}`}>
+        <Button variant="ghost" onClick={onExit} className="rounded-full !p-3 bg-gray-100/50">
           <X size={24} />
         </Button>
         <h2 className="text-xl font-black text-gray-800 tracking-tight truncate max-w-[200px]">{timer.taskName}</h2>
@@ -193,7 +207,9 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
         )}
 
         {/* The Reveal Container */}
-        <div className={`relative w-full aspect-square max-w-[320px] rounded-[2.5rem] overflow-hidden border-8 border-black shadow-cartoon bg-gray-100 transition-transform duration-500 ${isCompleted ? 'scale-105 rotate-2' : ''}`}>
+        <div className={`relative w-full aspect-square max-w-[320px] rounded-[2.5rem] overflow-hidden border-8 shadow-cartoon bg-gray-100 transition-all duration-500 
+            ${isCompleted ? 'scale-105 rotate-2 border-black' : 
+              isUrgent ? 'border-red-500 shadow-red-200 animate-heartbeat' : 'border-black'}`}>
           {/* The Hidden Image */}
           <img 
             src={timer.imageUri} 
@@ -203,7 +219,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
           
           {/* The Curtain/Overlay */}
           <div 
-            className={`absolute bottom-0 left-0 right-0 ${THEME_BG_COLORS[timer.themeColor]} z-10 flex items-start justify-center overflow-hidden`}
+            className={`absolute bottom-0 left-0 right-0 ${isUrgent ? 'bg-red-500' : THEME_BG_COLORS[timer.themeColor]} z-10 flex items-start justify-center overflow-hidden transition-colors duration-300`}
             style={{ 
                 height: `${100 - progressPercentage}%`,
             }}
@@ -228,7 +244,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({
 
         {/* Timer Display */}
         <div className="mt-6 text-center">
-            <div className={`text-6xl font-black tabular-nums tracking-tighter transition-colors ${timeLeft <= 10 && timeLeft > 0 ? 'text-red-500 scale-110' : 'text-gray-800'}`}>
+            <div className={`text-6xl font-black tabular-nums tracking-tighter transition-all duration-300 ${isUrgent ? 'text-red-600 scale-110 animate-heartbeat' : 'text-gray-800'}`}>
                 {formatTime(timeLeft)}
             </div>
         </div>
