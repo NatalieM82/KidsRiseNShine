@@ -1,16 +1,18 @@
+
 import React, { useState } from 'react';
-import { Timer, ThemeColor, SoundType, THEME_BG_COLORS, PRESET_IMAGES } from '../types';
+import { Timer, ThemeColor, SoundType, THEME_BG_COLORS, PRESET_IMAGES, PresetDef } from '../types';
 import { Button } from './Button';
 import { playSound } from '../utils/audio';
 import { ArrowLeft, Upload, Check, Music, Clock, Play } from 'lucide-react';
 
 interface TimerFormProps {
   initialData?: Timer;
+  presets?: PresetDef[];
   onSave: (timer: Timer) => void;
   onCancel: () => void;
 }
 
-export const TimerForm: React.FC<TimerFormProps> = ({ initialData, onSave, onCancel }) => {
+export const TimerForm: React.FC<TimerFormProps> = ({ initialData, presets = [], onSave, onCancel }) => {
   const [taskName, setTaskName] = useState(initialData?.taskName || '');
   const [minutes, setMinutes] = useState(Math.floor((initialData?.durationSec || 120) / 60));
   const [seconds, setSeconds] = useState((initialData?.durationSec || 120) % 60);
@@ -82,6 +84,11 @@ export const TimerForm: React.FC<TimerFormProps> = ({ initialData, onSave, onCan
       soundType
     });
   };
+
+  const allPresets = [
+    ...PRESET_IMAGES,
+    ...presets.filter(p => p.uri && p.uri.length > 0).map(p => ({ name: p.name, uri: p.uri }))
+  ];
 
   return (
     <div className="flex flex-col h-full max-w-2xl mx-auto p-4 animate-fade-in">
@@ -168,7 +175,7 @@ export const TimerForm: React.FC<TimerFormProps> = ({ initialData, onSave, onCan
                 <input type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
               </label>
 
-            {PRESET_IMAGES.map((img) => (
+            {allPresets.map((img) => (
               <button
                 key={img.uri}
                 type="button"

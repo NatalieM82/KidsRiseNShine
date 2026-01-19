@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Timer, AppSettings, THEME_COLORS } from './types';
-import { loadInitialPresets, saveTimer, deleteTimer, getSettings, saveSettings, resetAllTimersStatus } from './services/storage';
+import { Timer, AppSettings, THEME_COLORS, PresetDef } from './types';
+import { loadInitialPresets, saveTimer, deleteTimer, getSettings, saveSettings, resetAllTimersStatus, getPresets, savePreset } from './services/storage';
 import { TimerForm } from './components/TimerForm';
 import { ActiveTimer } from './components/ActiveTimer';
 import { Button } from './components/Button';
 import { RaceToBus } from './components/RaceToBus';
 import { SettingsModal } from './components/SettingsModal';
-import { Plus, Trash2, Clock, Edit2, Check, Settings as SettingsIcon } from 'lucide-react';
+import { Plus, Trash2, Clock, Edit2, Check, Settings as SettingsIcon, Loader2 } from 'lucide-react';
 
 // View State Types
 type ViewState = 
@@ -33,6 +33,8 @@ interface TimerCardProps {
 
 const TimerCard: React.FC<TimerCardProps> = ({ timer, onActivate, onEdit, onDelete }) => {
   const completed = isCompletedToday(timer);
+  const themeClass = THEME_COLORS[timer.themeColor] || THEME_COLORS.blue;
+  const [bgClass, borderClass] = themeClass.split(' ');
 
   return (
     <div className="w-full">
@@ -41,13 +43,13 @@ const TimerCard: React.FC<TimerCardProps> = ({ timer, onActivate, onEdit, onDele
         className={`relative group w-full p-3 pr-4 rounded-3xl border-4 transition-all hover:-translate-y-1 active:translate-y-1 active:shadow-none flex items-center shadow-cartoon overflow-hidden cursor-pointer select-none ${completed ? 'bg-green-50 border-green-600' : 'bg-white border-black'}`}
       >
         {/* Decorative Background Shape */}
-        <div className={`absolute -right-8 -bottom-8 w-40 h-40 rounded-full opacity-10 ${THEME_COLORS[timer.themeColor].split(' ')[0]} pointer-events-none transition-transform group-hover:scale-110`} />
+        <div className={`absolute -right-8 -bottom-8 w-40 h-40 rounded-full opacity-10 ${bgClass} pointer-events-none transition-transform group-hover:scale-110`} />
         
         {/* Content Layout */}
         <div className="z-10 flex items-center w-full gap-4">
             
             {/* Image Thumbnail with Completed Overlay */}
-            <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 overflow-hidden shadow-sm flex-shrink-0 ${THEME_COLORS[timer.themeColor].split(' ')[1]}`}>
+            <div className={`relative w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 overflow-hidden shadow-sm flex-shrink-0 ${borderClass} bg-white`}>
                 <img 
                   src={timer.imageUri} 
                   alt={timer.taskName} 
@@ -111,7 +113,6 @@ const TimerCard: React.FC<TimerCardProps> = ({ timer, onActivate, onEdit, onDele
   );
 };
 
-
 const App: React.FC = () => {
   const [timers, setTimers] = useState<Timer[]>([]);
   const [view, setView] = useState<ViewState>({ type: 'DASHBOARD' });
@@ -121,19 +122,30 @@ const App: React.FC = () => {
   const [appSettings, setAppSettings] = useState<AppSettings>(getSettings());
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  // Simulation State (Lifted from RaceToBus)
+  // Simulation State
   const [simulation, setSimulation] = useState({ isActive: false, offset: 0 });
+
+  // Preset Generation State
+  const [presets, setPresets] = useState<PresetDef[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   // Load data on mount
   useEffect(() => {
+    // 1. Load basic data
     setTimers(loadInitialPresets());
     setAppSettings(getSettings());
+    
+    // 2. Load presets and trigger generation if needed
+    const loadedPresets = getPresets();
+    setPresets(loadedPresets);
 
-    // Check every minute if the day has changed to reset statuses
+    // 3. Date check loop
     const interval = setInterval(() => {
         const now = new Date();
         if (now.toDateString() !== currentDate.toDateString()) {
             setCurrentDate(now);
+            // Optionally reset statuses here automatically?
+            // For now, let's keep it manual or explicitly via button
         }
     }, 60000);
 
@@ -165,7 +177,6 @@ const App: React.FC = () => {
 
   const journeyTimes = getJourneyTimes();
 
-
   // Handlers
   const handleSaveSettings = (newSettings: AppSettings) => {
       const saved = saveSettings(newSettings);
@@ -175,8 +186,7 @@ const App: React.FC = () => {
   const handleResetAllProgress = () => {
       const updated = resetAllTimersStatus();
       setTimers([...updated]);
-      setIsSettingsOpen(false); // Close modal for visual confirmation
-
+      setIsSettingsOpen(false);
   };
 
   const handleSave = (timer: Timer) => {
@@ -193,9 +203,11 @@ const App: React.FC = () => {
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation(); 
+    e.stopPropagation();
+    if(window.confirm("Are you sure you want to remove this task?")) {
         const updated = deleteTimer(id);
         setTimers(updated);
+    }
   };
 
   const handleEdit = (e: React.MouseEvent, timer: Timer) => {
@@ -204,8 +216,13 @@ const App: React.FC = () => {
   };
 
   // --------------------------------------------------------------------------
-  // RENDER HELPERS
+  // RENDER Helpers
   // --------------------------------------------------------------------------
+
+  // Shared Total Duration calculation for Dashboard and ActiveTimer logic
+  const totalUncompletedDuration = timers
+        .filter(t => !isCompletedToday(t))
+        .reduce((sum, t) => sum + t.durationSec, 0);
 
   const renderDashboard = () => {
     // Sort timers: Uncompleted first, then completed. 
@@ -217,12 +234,6 @@ const App: React.FC = () => {
         return aCompleted ? 1 : -1;
     });
 
-    // Calculate remaining task time for the bus logic
-    const totalRemainingSeconds = timers
-        .filter(t => !isCompletedToday(t))
-        .reduce((sum, t) => sum + t.durationSec, 0);
-    
-    // Calculate TOTAL duration for Settings Modal Budget
     const totalDurationAllTasks = timers.reduce((sum, t) => sum + t.durationSec, 0);
 
     return (
@@ -248,35 +259,35 @@ const App: React.FC = () => {
             </div>
             
             <div className="flex gap-3">
-                 {/* Settings Button */}
-                <Button 
+                 {/* Generation Status Indicator */}
+                 {isGenerating && (
+                    <div className="w-12 h-12 bg-white rounded-full border-4 border-gray-100 flex items-center justify-center animate-pulse shadow-sm" title="Creating new stickers...">
+                        <Loader2 size={24} className="text-kid-purple animate-spin" />
+                    </div>
+                 )}
+
+                 <Button 
                     variant="secondary" 
                     onClick={() => setIsSettingsOpen(true)}
-                    className="rounded-full !p-3 w-12 h-12 flex items-center justify-center bg-white"
-                    title="Parent Settings"
-                >
-                    <SettingsIcon size={24} className="text-gray-800" />
-                </Button>
-
-                {/* Sun Icon */}
-                <div className="w-12 h-12 bg-yellow-300 rounded-full border-4 border-black flex items-center justify-center shadow-cartoon">
-                    <span className="text-2xl">☀️</span>
-                </div>
+                    className="rounded-full !p-3"
+                 >
+                    <SettingsIcon size={24} />
+                 </Button>
             </div>
         </header>
 
-        {/* Journey Progress */}
-        <RaceToBus 
+         {/* Journey Progress */}
+         <RaceToBus 
             startTime={journeyTimes.start}
             departureTime={journeyTimes.end}
-            totalTaskSecondsRemaining={totalRemainingSeconds}
+            totalTaskSecondsRemaining={totalUncompletedDuration}
             isSimulating={simulation.isActive}
             simulatedOffsetMinutes={simulation.offset}
         />
 
-        {/* Timer List */}
-        <div className="flex flex-col gap-4">
-            {sortedTimers.map((timer) => (
+        {/* Timer Grid */}
+        <div className="space-y-4">
+            {sortedTimers.map(timer => (
             <TimerCard 
                 key={timer.id} 
                 timer={timer} 
@@ -285,57 +296,63 @@ const App: React.FC = () => {
                 onDelete={handleDelete}
             />
             ))}
+
+            {sortedTimers.length === 0 && (
+                <div className="text-center py-12 px-4 bg-white rounded-3xl border-4 border-dashed border-gray-200">
+                    <div className="w-20 h-20 bg-gray-100 rounded-full mx-auto mb-4 flex items-center justify-center">
+                        <Clock size={40} className="text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-600 mb-2">No tasks yet!</h3>
+                    <p className="text-gray-400 mb-6">Add your morning routine tasks to get started.</p>
+                </div>
+            )}
         </div>
 
-        {/* Empty State */}
-        {timers.length === 0 && (
-            <div className="text-center py-20 opacity-50">
-                <p className="text-xl font-bold text-gray-400">No tasks yet!</p>
-                <p className="text-gray-400">Add one below to get started.</p>
-            </div>
-        )}
-
-        {/* FAB */}
+        {/* Floating Action Button */}
         <div className="fixed bottom-6 right-6 z-40">
             <Button 
             onClick={() => setView({ type: 'CREATE' })}
-            className="rounded-full w-16 h-16 !p-0 flex items-center justify-center bg-black text-white shadow-cartoon hover:scale-105"
+            className="rounded-full w-16 h-16 !p-0 shadow-cartoon hover:scale-105 active:scale-95 flex items-center justify-center"
             >
-            <Plus size={32} />
+            <Plus size={32} strokeWidth={3} />
             </Button>
         </div>
         </div>
     );
   };
 
-  // --------------------------------------------------------------------------
-  // MAIN RENDER
-  // --------------------------------------------------------------------------
-  
   return (
-    <div className="font-sans antialiased text-gray-900 selection:bg-yellow-200">
+    <div className="font-sans text-gray-900 min-h-screen">
       {view.type === 'DASHBOARD' && renderDashboard()}
       
-      {view.type === 'CREATE' && (
-        <TimerForm 
-            onSave={handleSave} 
-            onCancel={() => setView({ type: 'DASHBOARD' })} 
-        />
-      )}
-      
-      {view.type === 'EDIT' && (
-        <TimerForm 
-            initialData={view.timer}
-            onSave={handleSave} 
-            onCancel={() => setView({ type: 'DASHBOARD' })} 
-        />
+      {(view.type === 'CREATE' || view.type === 'EDIT') && (
+        <div className="fixed inset-0 bg-white z-50 overflow-hidden">
+             <TimerForm 
+                initialData={view.type === 'EDIT' ? view.timer : undefined}
+                presets={presets}
+                onSave={handleSave}
+                onCancel={() => setView({ type: 'DASHBOARD' })}
+             />
+        </div>
       )}
 
       {view.type === 'ACTIVE' && (
         <ActiveTimer 
-            timer={view.timer} 
-            onExit={() => setView({ type: 'DASHBOARD' })}
-            onComplete={handleTimerComplete}
+          timer={view.timer}
+          onExit={() => setView({ type: 'DASHBOARD' })}
+          onComplete={handleTimerComplete}
+          journeyConfig={{
+            startTime: journeyTimes.start,
+            departureTime: journeyTimes.end,
+            isSimulating: simulation.isActive,
+            simulatedOffsetMinutes: simulation.offset
+          }}
+          // If the active task is NOT completed, it is included in totalUncompletedDuration.
+          // We subtract its duration here because ActiveTimer adds 'timeLeft' dynamically to this base.
+          // If the active task IS completed (re-running it), it wasn't in totalUncompletedDuration, so base is fine.
+          otherTasksDurationSec={
+             totalUncompletedDuration - (isCompletedToday(view.timer) ? 0 : view.timer.durationSec)
+          }
         />
       )}
     </div>

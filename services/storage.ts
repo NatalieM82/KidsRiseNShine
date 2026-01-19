@@ -1,7 +1,9 @@
-import { Timer, AppSettings } from '../types';
+
+import { Timer, AppSettings, PresetDef } from '../types';
 
 const TIMER_STORAGE_KEY = 'rise_and_shine_timers';
 const SETTINGS_STORAGE_KEY = 'rise_and_shine_settings';
+const PRESET_STORAGE_KEY = 'rise_and_shine_presets';
 
 // --- Timers ---
 
@@ -65,6 +67,35 @@ export const saveSettings = (settings: AppSettings): AppSettings => {
 };
 
 // --- Presets ---
+
+export const getPresets = (): PresetDef[] => {
+  try {
+    const data = localStorage.getItem(PRESET_STORAGE_KEY);
+    if (data) return JSON.parse(data);
+
+    // Initial Seed for AI Generation demo
+    const seeds: PresetDef[] = [
+        { id: 'ai-1', name: 'Cereal', prompt: 'cartoon bowl of cereal with milk and spoon, colorful style', uri: '', isGenerated: false },
+        { id: 'ai-2', name: 'Teddy', prompt: 'cute teddy bear sitting', uri: '', isGenerated: false }
+    ];
+    localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(seeds));
+    return seeds;
+  } catch (e) {
+    return [];
+  }
+};
+
+export const savePreset = (preset: PresetDef): PresetDef[] => {
+  const presets = getPresets();
+  const index = presets.findIndex(p => p.id === preset.id);
+  if (index >= 0) {
+    presets[index] = preset;
+  } else {
+    presets.push(preset);
+  }
+  localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(presets));
+  return presets;
+};
 
 export const loadInitialPresets = (): Timer[] => {
     const current = getTimers();

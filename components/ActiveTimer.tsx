@@ -2,12 +2,20 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Timer, THEME_BG_COLORS } from '../types';
 import { Button } from './Button';
 import { playSound } from '../utils/audio';
+import { RaceToBus } from './RaceToBus';
 import { X, Pause, Play, RotateCcw, Check } from 'lucide-react';
 
 interface ActiveTimerProps {
   timer: Timer;
   onExit: () => void;
   onComplete?: (timer: Timer) => void;
+  journeyConfig: {
+    startTime: string;
+    departureTime: string;
+    isSimulating: boolean;
+    simulatedOffsetMinutes: number;
+  };
+  otherTasksDurationSec: number;
 }
 
 // Simple particle system for confetti
@@ -63,7 +71,13 @@ const Confetti = () => {
 };
 
 
-export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onComplete }) => {
+export const ActiveTimer: React.FC<ActiveTimerProps> = ({ 
+  timer, 
+  onExit, 
+  onComplete,
+  journeyConfig,
+  otherTasksDurationSec 
+}) => {
   const [timeLeft, setTimeLeft] = useState(timer.durationSec);
   const [isActive, setIsActive] = useState(false); // Start paused so user gets ready
   const [isCompleted, setIsCompleted] = useState(false);
@@ -91,7 +105,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
       } else {
           rafRef.current = requestAnimationFrame(tick);
       }
-  }, [timer]); // Removed onComplete from dependency to avoid stale closure issues if not needed, handled in finishTimer
+  }, [timer]);
 
   const finishTimer = () => {
       setIsCompleted(true);
@@ -149,8 +163,11 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
     return `${m}:${s.toString().padStart(2, '0')}`;
   };
 
+  // Dynamic calculation of total load including current ticking timer
+  const currentTotalRemaining = otherTasksDurationSec + timeLeft;
+
   return (
-    <div className="fixed inset-0 bg-white z-50 flex flex-col">
+    <div className="fixed inset-0 bg-white z-50 flex flex-col overflow-y-auto">
       {isCompleted && <Confetti />}
 
       {/* Header */}
@@ -162,11 +179,21 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
         <div className="w-12"></div> {/* Spacer for centering */}
       </div>
 
-      {/* Main Visual Area */}
-      <div className="flex-1 flex flex-col items-center justify-center p-6 w-full max-w-lg mx-auto relative">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col items-center p-4 w-full max-w-lg mx-auto relative pb-20">
         
+        {/* Race Progress Bar (Compact inside timer) */}
+        {!isCompleted && (
+            <RaceToBus 
+                {...journeyConfig}
+                totalTaskSecondsRemaining={currentTotalRemaining}
+                compact={true}
+                className="mb-8"
+            />
+        )}
+
         {/* The Reveal Container */}
-        <div className={`relative w-full aspect-square max-w-[350px] rounded-[3rem] overflow-hidden border-8 border-black shadow-cartoon bg-gray-100 transition-transform duration-500 ${isCompleted ? 'scale-105 rotate-2' : ''}`}>
+        <div className={`relative w-full aspect-square max-w-[320px] rounded-[2.5rem] overflow-hidden border-8 border-black shadow-cartoon bg-gray-100 transition-transform duration-500 ${isCompleted ? 'scale-105 rotate-2' : ''}`}>
           {/* The Hidden Image */}
           <img 
             src={timer.imageUri} 
@@ -175,18 +202,13 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
           />
           
           {/* The Curtain/Overlay */}
-          {/* Anchored to BOTTOM. As height decreases from 100% to 0%, it moves down, revealing the TOP first. */}
           <div 
             className={`absolute bottom-0 left-0 right-0 ${THEME_BG_COLORS[timer.themeColor]} z-10 flex items-start justify-center overflow-hidden`}
             style={{ 
                 height: `${100 - progressPercentage}%`,
-                // Explicitly NO transition here to ensure it syncs perfectly with the timer loop
             }}
           >
-              {/* Decorative edge for the curtain */}
               <div className="w-full h-3 bg-black/10 absolute top-0"></div>
-
-              {/* Optional: Add a subtle pattern or icon on the curtain */}
               <div className="mt-12 opacity-50 text-white animate-bounce">
                   {!isActive && !isCompleted && timeLeft === totalTime && (
                       <span className="font-bold text-lg">Press Play!</span>
@@ -205,7 +227,7 @@ export const ActiveTimer: React.FC<ActiveTimerProps> = ({ timer, onExit, onCompl
         </div>
 
         {/* Timer Display */}
-        <div className="mt-8 text-center">
+        <div className="mt-6 text-center">
             <div className={`text-6xl font-black tabular-nums tracking-tighter transition-colors ${timeLeft <= 10 && timeLeft > 0 ? 'text-red-500 scale-110' : 'text-gray-800'}`}>
                 {formatTime(timeLeft)}
             </div>

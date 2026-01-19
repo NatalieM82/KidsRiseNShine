@@ -1,3 +1,4 @@
+
 export interface Timer {
   id: string;
   taskName: string;
@@ -15,6 +16,14 @@ export interface AppSettings {
   morningStart: string; // HH:mm
   departureTime: string; // HH:mm
   bufferMinutes: number;
+}
+
+export interface PresetDef {
+  id: string;
+  name: string;
+  prompt: string;
+  uri: string;
+  isGenerated: boolean;
 }
 
 export const THEME_COLORS: Record<ThemeColor, string> = {
